@@ -67,24 +67,27 @@ exports.getCart = (req, res, next) => {
 exports.postCart = (req, res, next) => {
   const prodId = req.body.productId;
   let fetchedCart;
+  let newQuantity = 1;
   req.user.getCart()
    .then(cart=>{
      fetchedCart = cart;
      cart.getProducts({where:{id:prodId}})
       .then(cartProducts=>{
-        let products
-        if(cartProducts.length>0){
-          products = cartProducts[0];
-        }
-        let newQuantity = 1;
+        let products = cartProducts[0];
         if(products){
-          //...
+          let oldQuantity = products.cartItem.quantity;
+          newQuantity = oldQuantity+1;
+          // return fetchedCart.addProduct(product,{through:{quantity:newQuantity}})
+          return products
         }
         return Product.findByPk(prodId)
-        .then(product=>{
-          fetchedCart.addProduct(product, {through:{quantity:newQuantity}})
-        }).catch(err=>console.log(err))
-      }).catch(err=>console.log(err))
+        //  .then(product=>{
+        //   return fetchedCart.addProduct(product,{through:{quantity:newQuantity}})
+        //  })
+      })
+       .then(product=>{
+        return fetchedCart.addProduct(product,{through:{quantity:newQuantity}})
+       })
    })
     .then(()=> res.redirect('/cart'))
    .catch(err=>console.log(err))
@@ -98,10 +101,21 @@ exports.postCart = (req, res, next) => {
 
 exports.postCartDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
-  Product.findById(prodId, product => {
-    Cart.deleteProduct(prodId, product.price);
-    res.redirect('/cart');
-  });
+  req.user.getCart()
+   .then(cart=>{
+    return cart.getProducts({where:{id:prodId}})
+   })
+    .then(products=>{
+      console.log(products)
+      const product = products[0]
+      return product.cartItem.destroy()
+    })
+     .then(()=> res.redirect('/cart'))
+   .catch(err=>console.log(err))
+  // Product.findById(prodId, product => {
+  //   Cart.deleteProduct(prodId, product.price);
+  //   res.redirect('/cart');
+  // });
 };
 
 exports.getOrders = (req, res, next) => {
